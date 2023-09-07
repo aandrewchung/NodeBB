@@ -122,4 +122,8 @@ const Topics: TopicsInterface = {
     },
 };
 
-export default Topics;
+function exportTopics(): TopicsInterface {
+    return Topics;
+}
+
+export = exportTopics;
