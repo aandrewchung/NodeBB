@@ -1,4 +1,5 @@
 import db from '../database';
+import plugins from '../plugins';
 import posts from '../posts';
 
 interface TopicData {
@@ -14,6 +15,7 @@ interface TopicsInterface {
     getLatestTidsFromSet(set: string, start: number, stop: number, term: string): Promise<Array<number>>;
     updateLastPostTimeFromLastPid(tid: string): Promise<void>;
     updateLastPostTime(tid: string, lastposttime: number): Promise<void>;
+    updateRecent(tid: string, timestamp: number): Promise<void>;
 }
 
 interface ThisType {
@@ -25,6 +27,7 @@ interface ThisType {
     updateRecent(tid: string, lastposttime: number): Promise<void>;
     getLatestUndeletedPid(tid: string): Promise<number | undefined>;
     updateLastPostTime(tid: string, lastposttime: number): Promise<void>;
+
 }
 
 interface DBType {
@@ -35,6 +38,13 @@ interface DBType {
 
 interface PostsType {
     getPostField(pid: number, field: string): Promise<number | undefined>;
+}
+
+interface PluginsType {
+    hooks: {
+        hasListeners(event: string): boolean;
+        fire(event: string, data: object): Promise<object>;
+    };
 }
 
 const terms = {
@@ -98,6 +108,16 @@ const Topics: TopicsInterface = {
 
         if (!topicData.pinned) {
             await (db as DBType).sortedSetAdd(`cid:${topicData.cid}:tids`, lastposttime, tid);
+        }
+    },
+
+    updateRecent: async function (this: ThisType, tid: string, timestamp: number): Promise<void> {
+        let data: { tid: string, timestamp: number } = { tid: tid, timestamp: timestamp };
+        if ((plugins as PluginsType).hooks.hasListeners('filter:topics.updateRecent')) {
+            data = await (plugins as PluginsType).hooks.fire('filter:topics.updateRecent', { tid: tid, timestamp: timestamp }) as { tid: string, timestamp: number };
+        }
+        if (data && data.tid && data.timestamp) {
+            await (db as DBType).sortedSetAdd('topics:recent', data.timestamp, data.tid);
         }
     },
 };

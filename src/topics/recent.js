@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const database_1 = __importDefault(require("../database"));
+const plugins_1 = __importDefault(require("../plugins"));
 const posts_1 = __importDefault(require("../posts"));
 const terms = {
     day: 86400000,
@@ -72,6 +73,17 @@ const Topics = {
             yield this.updateRecent(tid, lastposttime);
             if (!topicData.pinned) {
                 yield database_1.default.sortedSetAdd(`cid:${topicData.cid}:tids`, lastposttime, tid);
+            }
+        });
+    },
+    updateRecent: function (tid, timestamp) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let data = { tid: tid, timestamp: timestamp };
+            if (plugins_1.default.hooks.hasListeners('filter:topics.updateRecent')) {
+                data = (yield plugins_1.default.hooks.fire('filter:topics.updateRecent', { tid: tid, timestamp: timestamp }));
+            }
+            if (data && data.tid && data.timestamp) {
+                yield database_1.default.sortedSetAdd('topics:recent', data.timestamp, data.tid);
             }
         });
     },
